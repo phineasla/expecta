@@ -2,34 +2,38 @@
 #import "EXPFailTest.h"
 
 @interface EXPExpectFailTest : XCTestCase
-@property (nonatomic, copy) NSString *fileName;
-@property (nonatomic, copy) NSString *errorDescription;
+@property (nonatomic, strong) XCTIssue *issue;
 @property (assign) NSUInteger lineNumber;
 @end
 
 @implementation EXPExpectFailTest
 
 // This test is dependent on the LOC with the failure on
-static NSInteger EXPFailTestLine = 28;
+static NSInteger EXPFailTestLine = 25;
 
-- (void)recordFailureWithDescription:(NSString *)description inFile:(NSString *)filePath atLine:(NSUInteger)lineNumber expected:(BOOL)expected
+- (void) recordIssue:(XCTIssue *)issue
 {
-    if (lineNumber != EXPFailTestLine) {
-        [super recordFailureWithDescription:description inFile:filePath atLine:lineNumber expected:expected];
-    } else {
-        self.fileName = filePath;
-        self.lineNumber = lineNumber;
-        self.errorDescription = description;
-    }
+  if (issue.sourceCodeContext.location.lineNumber != EXPFailTestLine) {
+    [super recordIssue:issue];
+  } else {
+    self.issue = issue;
+  }
 }
 
 - (void)test_ExpectFailToFail
 {
-    failure(@"Expect Fail to Fail");
+  failure(@"Expect Fail to Fail");
 
-    assertEqualObjects(self.errorDescription, @"Expect Fail to Fail");
-    assertTrue([self.fileName hasSuffix:@"EXPFailTest.m"]);
-    assertEqualObjects(@(self.lineNumber), @(EXPFailTestLine));
+  assertEquals(self.issue.type, XCTIssueTypeAssertionFailure);
+  assertEqualObjects(self.issue.compactDescription, @"Expect Fail to Fail");
+  assertNil(self.issue.detailedDescription);
+  assertNil(self.issue.detailedDescription);
+  assertNil(self.issue.associatedError);
+  assertEquals(self.issue.attachments.count, 0);
+  XCTSourceCodeContext *context = self.issue.sourceCodeContext;
+  XCTSourceCodeLocation *location = context.location;
+  assertTrue([location.fileURL.path hasSuffix:@"EXPFailTest.m"]);
+  assertEquals(location.lineNumber, EXPFailTestLine);
 }
 
 @end
@@ -78,6 +82,18 @@ static NSInteger EXPFailTestLine = 28;
 }
 
 @end
+
+@implementation TestCaseClassWithRecordIssueMethod
+
+@synthesize
+  issue=_issue;
+
+- (void)recordIssue:(XCTIssue *)issue
+{
+  self.issue = issue;
+}
+
+@end
     
 @interface EXPFailTest : XCTestCase
 @end
@@ -98,16 +114,33 @@ static NSInteger EXPFailTestLine = 28;
 
 - (void)test_EXPFailWithTestCaseClassThatHasFailureMethod {
     // it calls recordFailureWithDescription:inFile:atLine:expected: method
-    TestCaseClassWithRecordFailureMethod *testCase = [TestCaseClassWithRecordFailureMethod new];
-    assertNil(testCase.description);
-    assertNil(testCase.fileName);
-    [testCase fail];
-    assertEqualObjects(testCase.description, @"epic fail");
-    assertEqualObjects(testCase.fileName, @"test.m");
-    assertEqualObjects(@(testCase.lineNumber), @777);
-    assertEquals(testCase.expected, NO);
-    [testCase release];
+  TestCaseClassWithRecordFailureMethod *testCase = [TestCaseClassWithRecordFailureMethod new];
+  assertNil(testCase.description);
+  assertNil(testCase.fileName);
+  [testCase fail];
+  assertEqualObjects(testCase.description, @"epic fail");
+  assertEqualObjects(testCase.fileName, @"test.m");
+  assertEqualObjects(@(testCase.lineNumber), @777);
+  assertEquals(testCase.expected, NO);
+  [testCase release];
 }
 
+- (void)test_EXPFailWithTestCaseClassThatHasRecordIssueMethod {
+    // it calls recordIssue:
+  TestCaseClassWithRecordIssueMethod *testCase = [TestCaseClassWithRecordIssueMethod new];
+  assertNil(testCase.issue);
+  [testCase fail];
+  XCTIssue* issue = testCase.issue;
+  assertEquals(issue.type, XCTIssueTypeAssertionFailure);
+  assertEqualObjects(issue.compactDescription, @"epic fail");
+  assertNil(issue.detailedDescription);
+  assertNil(issue.associatedError);
+  assertEquals(issue.attachments.count, 0);
+  XCTSourceCodeContext *context = issue.sourceCodeContext;
+  XCTSourceCodeLocation *location = context.location;
+  assertTrue([location.fileURL.path hasSuffix:@"test.m"]);
+  assertEquals(location.lineNumber, 777);
+  [testCase release];
+}
 
 @end

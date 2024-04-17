@@ -15,7 +15,7 @@
 
 @end
 
-// Test case class with failWithException: method
+// Test case class with recordFailureWithDescription:inFile:atLine:expected: method
 @interface TestCaseClassWithRecordFailureMethod : TestCaseClassWithoutFailMethod {
   NSString *_description;
   NSString *_fileName;
@@ -29,5 +29,16 @@
 @property (assign) BOOL expected;
 
 - (void)recordFailureWithDescription:(NSString *)description inFile:(NSString *)filename atLine:(NSUInteger)lineNumber expected:(BOOL)expected;
+
+@end
+
+// Test case class with recordIssue: method
+@interface TestCaseClassWithRecordIssueMethod : TestCaseClassWithoutFailMethod {
+  XCTIssue *_issue;
+}
+
+@property (nonatomic, strong) XCTIssue *issue;
+
+- (void)recordIssue:(XCTIssue *)issue;
 
 @end

@@ -6,11 +6,13 @@
 #import "EXPDoubleTuple.h"
 #import "EXPDefines.h"
 #import <objc/runtime.h>
+#import <XCTest/XCTest.h>
 
 @interface NSObject (ExpectaXCTestRecordFailure)
 
 // suppress warning
 - (void)recordFailureWithDescription:(NSString *)description inFile:(NSString *)filename atLine:(NSUInteger)lineNumber expected:(BOOL)expected;
+- (void)recordIssue:(XCTIssue *)issue;
 
 @end
 
@@ -107,11 +109,21 @@ void EXPFail(id testCase, int lineNumber, const char *fileName, NSString *messag
   NSString *reason = [NSString stringWithFormat:@"%s:%d %@", fileName, lineNumber, message];
   NSException *exception = [NSException exceptionWithName:@"Expecta Error" reason:reason userInfo:nil];
 
-  if(testCase && [testCase respondsToSelector:@selector(recordFailureWithDescription:inFile:atLine:expected:)]){
-      [testCase recordFailureWithDescription:message
-                                      inFile:@(fileName)
-                                      atLine:lineNumber
-                                    expected:NO];
+  if(testCase && [testCase respondsToSelector:@selector(recordIssue:)]) {
+    XCTSourceCodeLocation *location = [[XCTSourceCodeLocation alloc] initWithFilePath:@(fileName) lineNumber:lineNumber];
+    XCTSourceCodeContext *context = [[XCTSourceCodeContext alloc] initWithLocation:location];
+    XCTIssue *issue = [[XCTIssue alloc] initWithType:XCTIssueTypeAssertionFailure
+                                  compactDescription:message
+                                 detailedDescription:nil
+                                   sourceCodeContext:context
+                                     associatedError:nil
+                                         attachments:@[]];
+    [testCase recordIssue:issue];
+  } else if(testCase && [testCase respondsToSelector:@selector(recordFailureWithDescription:inFile:atLine:expected:)]){
+    [testCase recordFailureWithDescription:message
+                                    inFile:@(fileName)
+                                    atLine:lineNumber
+                                  expected:NO];
   } else {
     [exception raise];
   }
